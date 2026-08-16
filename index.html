@@ -61,6 +61,7 @@ cursor:pointer}
 .abrir{margin-left:.5rem;font-size:.8rem;color:var(--s);font-weight:600;
 text-decoration:none}
 [hidden]{display:none!important}
+.rodape{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--line);color:var(--dim);font-size:.82rem}
 
 .login{max-width:380px;margin:14vh auto;text-align:center}
 .login h1{font-size:1.35rem;margin-bottom:.4rem}
@@ -109,8 +110,12 @@ $('entrar').onclick = async () => {
 };
 
 async function render() {
+  // Mesma regra do painel local: a tela e para o que pede acao. As demais
+  // continuam na tabela e viram so a contagem do rodape.
   const { data, error } = await sb.from('iniciativas').select('*')
-    .order('status').order('git_dias', { nullsFirst: false });
+    .eq('status', 'ativo').order('git_dias', { nullsFirst: false });
+  const { count: total } = await sb.from('iniciativas')
+    .select('*', { count: 'exact', head: true });
   const p = $('painel');
   if (error) { p.innerHTML = '<p>Erro ao carregar: ' + esc(error.message) + '</p>'; return; }
   if (!data.length) {
@@ -147,10 +152,15 @@ async function render() {
       if (i.rodar) h += '<div class="row"><b>Rodar:</b> <code>' + esc(i.rodar) + '</code>'
         + '<button class="cp" data-cmd="' + esc(i.rodar) + '">copiar</button>'
         + (i.url ? ' <a class="abrir" href="' + esc(i.url) + '">abrir →</a>' : '') + '</div>';
+      if (i.cadencia) h += '<div class="row"><b>Cadência:</b> ' + esc(i.cadencia) + '</div>';
       if (i.alertas?.length) h += '<div class="alerta">⚠️ ' + esc(i.alertas.join('; ')) + '</div>';
       h += '</div>';
     }
   }
+  const fora = (total || 0) - data.length;
+  if (fora > 0) h += '<div class="rodape">' + fora + ' iniciativas fora da tela '
+    + '(dormentes, congeladas e arquivadas) — continuam no vault com a '
+    + 'classificação preservada.</div>';
   p.innerHTML = h;
   $('sair').onclick = async () => { await sb.auth.signOut(); location.reload(); };
   p.querySelectorAll('.cp').forEach(b => b.onclick = () =>
